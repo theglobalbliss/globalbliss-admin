@@ -30,6 +30,11 @@ const form = ref({
 
 const selectedFile = ref(null);
 const previewUrl = ref("");
+
+const galleryImages = ref([]);
+const selectedGalleryFiles = ref([]);
+const galleryPreviewUrls = ref([]);
+
 const isLoading = ref(true);
 const isSaving = ref(false);
 const successMessage = ref("");
@@ -49,6 +54,21 @@ const getImageUrl = (imagePath) => {
   }
 
   return `/${imagePath}`;
+};
+
+const fetchGalleryImages = async () => {
+  const { data, error } = await supabase
+    .from("project_gallery")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error(error.message);
+    return;
+  }
+
+  galleryImages.value = data || [];
 };
 
 const fetchProject = async () => {
@@ -80,6 +100,8 @@ const fetchProject = async () => {
     sort_order: data.sort_order || 1,
   };
 
+  await fetchGalleryImages();
+
   isLoading.value = false;
 };
 
@@ -90,6 +112,15 @@ const handleFileSelect = (event) => {
 
   selectedFile.value = file;
   previewUrl.value = URL.createObjectURL(file);
+};
+
+const handleGalleryFilesSelect = (event) => {
+  const files = Array.from(event.target.files || []);
+
+  if (!files.length) return;
+
+  selectedGalleryFiles.value = files;
+  galleryPreviewUrls.value = files.map((file) => URL.createObjectURL(file));
 };
 
 const uploadImage = async () => {
@@ -127,6 +158,80 @@ const uploadImage = async () => {
   return data.publicUrl;
 };
 
+const uploadGalleryImages = async () => {
+  if (!selectedGalleryFiles.value.length) return;
+
+  for (let index = 0; index < selectedGalleryFiles.value.length; index++) {
+    const file = selectedGalleryFiles.value[index];
+    const fileExt = file.name.split(".").pop();
+
+    const safeTitle = form.value.title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "");
+
+    const fileName = `${safeTitle || "project"}-gallery-${Date.now()}-${index}.${fileExt}`;
+    const filePath = `project-gallery/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("project-images")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from("project-images")
+      .getPublicUrl(filePath);
+
+    const nextOrder = galleryImages.value.length + index + 1;
+
+    const { error: insertError } = await supabase
+      .from("project_gallery")
+      .insert({
+        project_id: Number(projectId),
+        image_url: data.publicUrl,
+        sort_order: nextOrder,
+      });
+
+    if (insertError) {
+      throw insertError;
+    }
+  }
+
+  selectedGalleryFiles.value = [];
+  galleryPreviewUrls.value = [];
+
+  await fetchGalleryImages();
+};
+
+const deleteGalleryImage = async (image) => {
+  const confirmed = confirm("Delete this gallery image?");
+
+  if (!confirmed) return;
+
+  successMessage.value = "";
+  errorMessage.value = "";
+
+  const { error } = await supabase
+    .from("project_gallery")
+    .delete()
+    .eq("id", image.id);
+
+  if (error) {
+    errorMessage.value = error.message;
+    return;
+  }
+
+  successMessage.value = "Gallery image deleted successfully.";
+  await fetchGalleryImages();
+};
+
 const updateProject = async () => {
   isSaving.value = true;
   successMessage.value = "";
@@ -156,6 +261,8 @@ const updateProject = async () => {
       throw error;
     }
 
+    await uploadGalleryImages();
+
     successMessage.value = "Project updated successfully.";
 
     setTimeout(() => {
@@ -179,7 +286,7 @@ onMounted(() => {
       <div>
         <h5 class="fw-bold mb-1">Edit Project</h5>
         <p class="text-muted mb-0">
-          Update project details, visibility, order, and image.
+          Update project details, visibility, order, image, and gallery.
         </p>
       </div>
 
@@ -337,7 +444,7 @@ onMounted(() => {
                 />
               </div>
 
-              <label class="form-label">Replace Image</label>
+              <label class="form-label">Replace Main Image</label>
               <input
                 type="file"
                 class="form-control"
@@ -346,7 +453,7 @@ onMounted(() => {
               />
 
               <small class="text-muted d-block mt-2">
-                Leave empty if you want to keep the current image.
+                Leave empty if you want to keep the current main image.
               </small>
             </div>
 
@@ -363,6 +470,73 @@ onMounted(() => {
               >
                 {{ form.is_featured ? "Visible on portfolio" : "Hidden from portfolio" }}
               </span>
+            </div>
+
+            <div class="p-3 rounded-4 mt-3" style="background: rgba(235, 93, 58, 0.06);">
+              <h6 class="fw-bold mb-3">Project Gallery Images</h6>
+
+              <label class="form-label">Upload Gallery Images</label>
+              <input
+                type="file"
+                class="form-control"
+                accept="image/*"
+                multiple
+                @change="handleGalleryFilesSelect"
+              />
+
+              <small class="text-muted d-block mt-2">
+                You can select multiple images. They will appear on the single project page.
+              </small>
+            </div>
+          </div>
+
+          <div v-if="galleryPreviewUrls.length" class="col-lg-12">
+            <div class="p-3 rounded-4" style="background: rgba(17, 17, 17, 0.04);">
+              <h6 class="fw-bold mb-3">New Gallery Preview</h6>
+
+              <div class="row g-3">
+                <div
+                  v-for="(preview, index) in galleryPreviewUrls"
+                  :key="index"
+                  class="col-md-4"
+                >
+                  <img
+                    :src="preview"
+                    alt="Gallery preview"
+                    style="width: 100%; height: 180px; object-fit: cover; border-radius: 14px;"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="galleryImages.length" class="col-lg-12">
+            <div class="p-3 rounded-4" style="background: rgba(17, 17, 17, 0.04);">
+              <h6 class="fw-bold mb-3">Existing Gallery Images</h6>
+
+              <div class="row g-3">
+                <div
+                  v-for="image in galleryImages"
+                  :key="image.id"
+                  class="col-md-4"
+                >
+                  <div class="p-2 border rounded-4">
+                    <img
+                      :src="image.image_url"
+                      alt="Project gallery"
+                      style="width: 100%; height: 180px; object-fit: cover; border-radius: 14px;"
+                    />
+
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger mt-2 w-100"
+                      @click="deleteGalleryImage(image)"
+                    >
+                      Delete Image
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
