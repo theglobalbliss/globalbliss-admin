@@ -70,7 +70,7 @@ const fetchPost = async () => {
     .single();
 
   if (error) {
-    errorMessage.value = error.message;
+    errorMessage.value = error.message || "Unable to fetch blog post.";
     isLoading.value = false;
     return;
   }

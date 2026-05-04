@@ -1,5 +1,6 @@
 <script setup>
 import { createClient } from "@supabase/supabase-js";
+import RichTextEditor from "~/components/admin/RichTextEditor.vue";
 
 definePageMeta({
   layout: "admin",
@@ -20,10 +21,9 @@ const form = ref({
   slug: "",
   category: "",
   excerpt: "",
-  description: "",
   content: "",
-  body: "",
   image_url: "",
+  author: "GlobalBliss",
   is_published: true,
   sort_order: 1,
 });
@@ -52,8 +52,6 @@ const getImageUrl = (imagePath) => {
 };
 
 const generateSlug = () => {
-  if (!form.value.title) return;
-
   form.value.slug = form.value.title
     .toLowerCase()
     .trim()
@@ -72,7 +70,7 @@ const fetchPost = async () => {
     .single();
 
   if (error) {
-    errorMessage.value = error.message;
+    errorMessage.value = error.message || "Unable to fetch blog post.";
     isLoading.value = false;
     return;
   }
@@ -82,10 +80,9 @@ const fetchPost = async () => {
     slug: data.slug || "",
     category: data.category || "",
     excerpt: data.excerpt || "",
-    description: data.description || data.excerpt || "",
-    content: data.content || data.body || "",
-    body: data.body || data.content || "",
+    content: data.content || "",
     image_url: data.image_url || "",
+    author: data.author || "GlobalBliss",
     is_published: data.is_published ?? true,
     sort_order: data.sort_order || 1,
   };
@@ -110,15 +107,16 @@ const uploadImage = async () => {
   const file = selectedFile.value;
   const fileExt = file.name.split(".").pop();
 
-  const safeTitle =
+  const safeSlug =
     form.value.slug ||
     form.value.title
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)+/g, "");
+      .replace(/(^-|-$)+/g, "") ||
+    "blog";
 
-  const fileName = `${safeTitle || "blog"}-${Date.now()}.${fileExt}`;
+  const fileName = `${safeSlug}-${Date.now()}.${fileExt}`;
   const filePath = `blog/${fileName}`;
 
   const { error: uploadError } = await supabase.storage
@@ -144,11 +142,11 @@ const updatePost = async () => {
   successMessage.value = "";
   errorMessage.value = "";
 
-  if (!form.value.slug) {
-    generateSlug();
-  }
-
   try {
+    if (!form.value.slug) {
+      generateSlug();
+    }
+
     const imageUrl = await uploadImage();
 
     const { error } = await supabase
@@ -158,10 +156,9 @@ const updatePost = async () => {
         slug: form.value.slug,
         category: form.value.category,
         excerpt: form.value.excerpt,
-        description: form.value.description || form.value.excerpt,
         content: form.value.content,
-        body: form.value.content,
         image_url: imageUrl,
+        author: form.value.author,
         is_published: form.value.is_published,
         sort_order: Number(form.value.sort_order),
         updated_at: new Date().toISOString(),
@@ -171,6 +168,10 @@ const updatePost = async () => {
     if (error) {
       throw error;
     }
+
+    form.value.image_url = imageUrl;
+    selectedFile.value = null;
+    previewUrl.value = "";
 
     successMessage.value = "Blog post updated successfully.";
 
@@ -195,7 +196,7 @@ onMounted(() => {
       <div>
         <h5 class="fw-bold mb-1">Edit Blog Post</h5>
         <p class="text-muted mb-0">
-          Update blog title, slug, image, content, and publishing status.
+          Update this blog post, rich content, SEO excerpt, image, and visibility.
         </p>
       </div>
 
@@ -224,28 +225,28 @@ onMounted(() => {
           <div class="col-lg-8">
             <div class="row g-3">
               <div class="col-md-8">
-                <label class="form-label">Blog Title</label>
+                <label class="form-label">Post Title</label>
                 <input
                   v-model="form.title"
                   type="text"
                   class="form-control"
-                  placeholder="Enter blog title"
+                  placeholder="Blog post title"
                   required
                   @blur="generateSlug"
                 />
               </div>
 
               <div class="col-md-4">
-                <label class="form-label">Sort Order</label>
+                <label class="form-label">Category</label>
                 <input
-                  v-model="form.sort_order"
-                  type="number"
+                  v-model="form.category"
+                  type="text"
                   class="form-control"
-                  min="1"
+                  placeholder="Branding, Design, Web..."
                 />
               </div>
 
-              <div class="col-md-6">
+              <div class="col-md-8">
                 <label class="form-label">Slug</label>
                 <input
                   v-model="form.slug"
@@ -256,38 +257,51 @@ onMounted(() => {
                 />
               </div>
 
-              <div class="col-md-6">
-                <label class="form-label">Category</label>
+              <div class="col-md-4">
+                <label class="form-label">Author</label>
                 <input
-                  v-model="form.category"
+                  v-model="form.author"
                   type="text"
                   class="form-control"
-                  placeholder="Brand Story"
                 />
               </div>
 
               <div class="col-md-12">
-                <label class="form-label">Excerpt</label>
+                <label class="form-label">Excerpt / Meta Description</label>
                 <textarea
                   v-model="form.excerpt"
                   class="form-control"
                   rows="3"
-                  placeholder="Short summary for the blog card"
+                  placeholder="Short summary of the post. This also helps your blog SEO."
                 ></textarea>
+
+                <small class="text-muted d-block mt-1">
+                  Recommended: 140 to 160 characters.
+                </small>
               </div>
 
               <div class="col-md-12">
                 <label class="form-label">Blog Content</label>
-                <textarea
-                  v-model="form.content"
-                  class="form-control"
-                  rows="12"
-                  placeholder="Write the full blog post here"
-                  required
-                ></textarea>
+
+                <RichTextEditor v-model="form.content" />
+
+                <small class="text-muted d-block mt-2">
+                  Use the editor tools to bold, italicize, underline, add headings,
+                  create lists, and insert internal or external links.
+                </small>
               </div>
 
-              <div class="col-md-12">
+              <div class="col-md-3">
+                <label class="form-label">Sort Order</label>
+                <input
+                  v-model="form.sort_order"
+                  type="number"
+                  class="form-control"
+                  min="1"
+                />
+              </div>
+
+              <div class="col-md-9 d-flex align-items-end">
                 <div class="form-check">
                   <input
                     v-model="form.is_published"
@@ -295,7 +309,6 @@ onMounted(() => {
                     type="checkbox"
                     id="isPublished"
                   />
-
                   <label class="form-check-label" for="isPublished">
                     Publish this blog post
                   </label>
@@ -325,17 +338,17 @@ onMounted(() => {
 
           <div class="col-lg-4">
             <div class="p-3 rounded-4" style="background: rgba(235, 93, 58, 0.06);">
-              <h6 class="fw-bold mb-3">Blog Image</h6>
+              <h6 class="fw-bold mb-3">Featured Image</h6>
 
               <div class="mb-3">
                 <img
                   :src="previewUrl || getImageUrl(form.image_url)"
-                  :alt="form.title"
-                  style="width: 100%; height: 230px; object-fit: cover; border-radius: 18px;"
+                  :alt="form.title || 'Blog image'"
+                  style="width: 100%; height: 220px; object-fit: cover; border-radius: 18px;"
                 />
               </div>
 
-              <label class="form-label">Replace Image</label>
+              <label class="form-label">Replace Blog Image</label>
               <input
                 type="file"
                 class="form-control"
@@ -344,7 +357,7 @@ onMounted(() => {
               />
 
               <small class="text-muted d-block mt-2">
-                Leave empty if you want to keep the current image.
+                Recommended size: 1200 × 675px. Use WebP if possible.
               </small>
             </div>
 
@@ -358,21 +371,9 @@ onMounted(() => {
                 {{ form.is_published ? "Published" : "Draft" }}
               </span>
 
-              <p class="text-muted mt-3 mb-0">
-                Published posts will appear on your public portfolio blog page.
+              <p class="text-muted mb-0 mt-3">
+                Published posts will appear on your portfolio blog page and can be indexed by Google.
               </p>
-            </div>
-
-            <div class="p-3 rounded-4 mt-3" style="background: rgba(17, 17, 17, 0.04);">
-              <h6 class="fw-bold mb-2">Public URL</h6>
-
-              <p class="text-muted mb-2">
-                This post will open at:
-              </p>
-
-              <code style="font-size: 13px;">
-                /blog/{{ form.slug }}
-              </code>
             </div>
           </div>
         </div>
