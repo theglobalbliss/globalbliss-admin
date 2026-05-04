@@ -1,5 +1,10 @@
 <script setup>
 import { createClient } from "@supabase/supabase-js";
+import RichTextEditor from "~/components/admin/RichTextEditor.vue";
+
+definePageMeta({
+  layout: "admin",
+});
 
 const config = useRuntimeConfig();
 
@@ -26,11 +31,6 @@ const isSaving = ref(false);
 const successMessage = ref("");
 const errorMessage = ref("");
 
-const logout = () => {
-  localStorage.removeItem("globalbliss_admin_logged_in");
-  navigateTo("/login");
-};
-
 const generateSlug = () => {
   form.value.slug = form.value.title
     .toLowerCase()
@@ -55,7 +55,17 @@ const uploadImage = async () => {
 
   const file = selectedFile.value;
   const fileExt = file.name.split(".").pop();
-  const fileName = `${form.value.slug || "blog"}-${Date.now()}.${fileExt}`;
+
+  const safeSlug =
+    form.value.slug ||
+    form.value.title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "") ||
+    "blog";
+
+  const fileName = `${safeSlug}-${Date.now()}.${fileExt}`;
   const filePath = `blog/${fileName}`;
 
   const { error: uploadError } = await supabase.storage
@@ -118,225 +128,191 @@ const addPost = async () => {
     isSaving.value = false;
   }
 };
-
-onMounted(() => {
-  const isLoggedIn = localStorage.getItem("globalbliss_admin_logged_in");
-
-  if (!isLoggedIn) {
-    navigateTo("/login");
-  }
-});
 </script>
 
 <template>
   <div>
-    <aside class="admin-sidebar">
-      <div class="admin-brand">
-        The GlobalBliss<br />
-        <span class="text-primary">Admin</span>
-        <small>Portfolio Control Center</small>
+    <div class="admin-topbar d-flex justify-content-between align-items-center">
+      <div>
+        <h5 class="fw-bold mb-1">Add Blog Post</h5>
+        <p class="text-muted mb-0">
+          Create a new article, update, or brand story for your portfolio website.
+        </p>
       </div>
 
-      <NuxtLink to="/dashboard">
-        <i class="bi bi-grid"></i>
-        Dashboard
+      <NuxtLink to="/blog" class="btn btn-outline-dark">
+        <i class="bi bi-arrow-left me-2"></i>
+        Back to Blog
       </NuxtLink>
+    </div>
 
-      <NuxtLink to="/projects">
-        <i class="bi bi-folder2-open"></i>
-        Projects
-      </NuxtLink>
+    <div class="admin-card">
+      <form @submit.prevent="addPost">
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label">Post Title</label>
+                <input
+                  v-model="form.title"
+                  type="text"
+                  class="form-control"
+                  placeholder="Blog post title"
+                  required
+                  @blur="generateSlug"
+                />
+              </div>
 
-      <NuxtLink to="/projects/add">
-        <i class="bi bi-plus-circle"></i>
-        Add Project
-      </NuxtLink>
+              <div class="col-md-4">
+                <label class="form-label">Category</label>
+                <input
+                  v-model="form.category"
+                  type="text"
+                  class="form-control"
+                  placeholder="Branding, Design, Web..."
+                />
+              </div>
 
-      <NuxtLink to="/services">
-        <i class="bi bi-briefcase"></i>
-        Services
-      </NuxtLink>
+              <div class="col-md-8">
+                <label class="form-label">Slug</label>
+                <input
+                  v-model="form.slug"
+                  type="text"
+                  class="form-control"
+                  placeholder="blog-post-slug"
+                  required
+                />
+              </div>
 
-      <NuxtLink to="/services/add">
-        <i class="bi bi-plus-square"></i>
-        Add Service
-      </NuxtLink>
+              <div class="col-md-4">
+                <label class="form-label">Author</label>
+                <input
+                  v-model="form.author"
+                  type="text"
+                  class="form-control"
+                />
+              </div>
 
-      <NuxtLink to="/testimonials">
-        <i class="bi bi-chat-quote"></i>
-        Testimonials
-      </NuxtLink>
+              <div class="col-md-12">
+                <label class="form-label">Excerpt / Meta Description</label>
+                <textarea
+                  v-model="form.excerpt"
+                  class="form-control"
+                  rows="3"
+                  placeholder="Short summary of the post. This also helps your blog SEO."
+                ></textarea>
 
-      <NuxtLink to="/testimonials/add">
-        <i class="bi bi-plus-circle-dotted"></i>
-        Add Testimonial
-      </NuxtLink>
+                <small class="text-muted d-block mt-1">
+                  Recommended: 140 to 160 characters.
+                </small>
+              </div>
 
-      <NuxtLink to="/blog">
-        <i class="bi bi-journal-text"></i>
-        Blog
-      </NuxtLink>
+              <div class="col-md-12">
+                <label class="form-label">Blog Content</label>
 
-      <NuxtLink to="/blog/add">
-        <i class="bi bi-pencil"></i>
-        Add Blog Post
-      </NuxtLink>
+                <RichTextEditor v-model="form.content" />
 
-      <NuxtLink to="/content/homepage">
-        <i class="bi bi-pencil-square"></i>
-        Homepage Content
-      </NuxtLink>
+                <small class="text-muted d-block mt-2">
+                  Use the editor tools to bold, italicize, underline, add headings,
+                  create lists, and insert internal or external links.
+                </small>
+              </div>
 
-      <a href="#" class="logout-link" @click.prevent="logout">
-        <i class="bi bi-box-arrow-left"></i>
-        Logout
-      </a>
-    </aside>
+              <div class="col-md-3">
+                <label class="form-label">Sort Order</label>
+                <input
+                  v-model="form.sort_order"
+                  type="number"
+                  class="form-control"
+                  min="1"
+                />
+              </div>
 
-    <main class="admin-main">
-      <div class="admin-topbar d-flex justify-content-between align-items-center">
-        <div>
-          <h5 class="fw-bold mb-1">Add Blog Post</h5>
-          <p class="text-muted mb-0">
-            Create a new article, update, or brand story for your portfolio website.
-          </p>
-        </div>
+              <div class="col-md-9 d-flex align-items-end">
+                <div class="form-check">
+                  <input
+                    v-model="form.is_published"
+                    class="form-check-input"
+                    type="checkbox"
+                    id="isPublished"
+                  />
+                  <label class="form-check-label" for="isPublished">
+                    Publish this blog post
+                  </label>
+                </div>
+              </div>
 
-        <NuxtLink to="/blog" class="btn btn-outline-dark">
-          Back to Blog
-        </NuxtLink>
-      </div>
+              <div v-if="successMessage" class="col-12">
+                <div class="alert alert-success">
+                  {{ successMessage }}
+                </div>
+              </div>
 
-      <div class="admin-card">
-        <form @submit.prevent="addPost">
-          <div class="row g-3">
-            <div class="col-md-8">
-              <label class="form-label">Post Title</label>
-              <input
-                v-model="form.title"
-                type="text"
-                class="form-control"
-                placeholder="Blog post title"
-                required
-                @blur="generateSlug"
-              />
+              <div v-if="errorMessage" class="col-12">
+                <div class="alert alert-danger">
+                  {{ errorMessage }}
+                </div>
+              </div>
+
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary" :disabled="isSaving">
+                  <i class="bi bi-check-circle me-2"></i>
+                  {{ isSaving ? "Saving..." : "Add Blog Post" }}
+                </button>
+              </div>
             </div>
+          </div>
 
-            <div class="col-md-4">
-              <label class="form-label">Category</label>
-              <input
-                v-model="form.category"
-                type="text"
-                class="form-control"
-                placeholder="Branding, Design, Web..."
-              />
-            </div>
+          <div class="col-lg-4">
+            <div class="p-3 rounded-4" style="background: rgba(235, 93, 58, 0.06);">
+              <h6 class="fw-bold mb-3">Featured Image</h6>
 
-            <div class="col-md-8">
-              <label class="form-label">Slug</label>
-              <input
-                v-model="form.slug"
-                type="text"
-                class="form-control"
-                placeholder="blog-post-slug"
-                required
-              />
-            </div>
+              <div v-if="previewUrl" class="mb-3">
+                <img
+                  :src="previewUrl"
+                  alt="Preview"
+                  style="width: 100%; height: 220px; object-fit: cover; border-radius: 18px;"
+                />
+              </div>
 
-            <div class="col-md-4">
-              <label class="form-label">Author</label>
-              <input
-                v-model="form.author"
-                type="text"
-                class="form-control"
-              />
-            </div>
+              <div
+                v-else
+                class="d-flex align-items-center justify-content-center mb-3"
+                style="width: 100%; height: 220px; border-radius: 18px; background: rgba(17, 17, 17, 0.05);"
+              >
+                <p class="text-muted mb-0">No image selected</p>
+              </div>
 
-            <div class="col-md-12">
-              <label class="form-label">Featured Image</label>
+              <label class="form-label">Upload Blog Image</label>
               <input
                 type="file"
                 class="form-control"
                 accept="image/*"
                 @change="handleFileSelect"
               />
+
+              <small class="text-muted d-block mt-2">
+                Recommended size: 1200 × 675px. Use WebP if possible.
+              </small>
             </div>
 
-            <div v-if="previewUrl" class="col-md-12">
-              <label class="form-label">Image Preview</label>
-              <div>
-                <img
-                  :src="previewUrl"
-                  alt="Preview"
-                  style="max-width: 320px; height: 180px; object-fit: cover; border-radius: 18px;"
-                />
-              </div>
-            </div>
+            <div class="p-3 rounded-4 mt-3" style="background: rgba(17, 17, 17, 0.04);">
+              <h6 class="fw-bold mb-2">Publishing Status</h6>
 
-            <div class="col-md-12">
-              <label class="form-label">Excerpt</label>
-              <textarea
-                v-model="form.excerpt"
-                class="form-control"
-                rows="3"
-                placeholder="Short summary of the post"
-              ></textarea>
-            </div>
+              <span
+                class="badge"
+                :class="form.is_published ? 'bg-success' : 'bg-secondary'"
+              >
+                {{ form.is_published ? "Will be published" : "Saved as draft" }}
+              </span>
 
-            <div class="col-md-12">
-              <label class="form-label">Content</label>
-              <textarea
-                v-model="form.content"
-                class="form-control"
-                rows="10"
-                placeholder="Write the full blog post here"
-              ></textarea>
-            </div>
-
-            <div class="col-md-3">
-              <label class="form-label">Sort Order</label>
-              <input
-                v-model="form.sort_order"
-                type="number"
-                class="form-control"
-                min="1"
-              />
-            </div>
-
-            <div class="col-md-9 d-flex align-items-end">
-              <div class="form-check">
-                <input
-                  v-model="form.is_published"
-                  class="form-check-input"
-                  type="checkbox"
-                  id="isPublished"
-                />
-                <label class="form-check-label" for="isPublished">
-                  Publish this blog post
-                </label>
-              </div>
-            </div>
-
-            <div v-if="successMessage" class="col-12">
-              <div class="alert alert-success">
-                {{ successMessage }}
-              </div>
-            </div>
-
-            <div v-if="errorMessage" class="col-12">
-              <div class="alert alert-danger">
-                {{ errorMessage }}
-              </div>
-            </div>
-
-            <div class="col-12">
-              <button type="submit" class="btn btn-primary" :disabled="isSaving">
-                {{ isSaving ? "Saving..." : "Add Blog Post" }}
-              </button>
+              <p class="text-muted mb-0 mt-3">
+                Published posts will appear on your portfolio blog page and can be indexed by Google.
+              </p>
             </div>
           </div>
-        </form>
-      </div>
-    </main>
+        </div>
+      </form>
+    </div>
   </div>
 </template>
