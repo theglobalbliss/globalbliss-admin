@@ -27,6 +27,11 @@ const unreadMessageCount = ref("0");
 const resumeCount = ref("0");
 const aboutContentStatus = ref("Ready");
 
+const recentPageViews = ref("0");
+const todayViews = ref("0");
+const uniqueSessions = ref("0");
+const mobileViews = ref("0");
+
 const fetchDashboardContent = async () => {
   const { data, error } = await supabase
     .from("homepage_content")
@@ -79,6 +84,39 @@ const fetchAboutContentStatus = async () => {
   aboutContentStatus.value = "Ready";
 };
 
+const fetchAnalyticsSummary = async () => {
+  const { data, error } = await supabase
+    .from("page_views")
+    .select("id, session_id, device_type, created_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    console.error("Dashboard analytics error:", error.message);
+    return;
+  }
+
+  const views = data || [];
+
+  recentPageViews.value = views.length;
+
+  const sessions = new Set(
+    views.map((view) => view.session_id).filter(Boolean)
+  );
+
+  uniqueSessions.value = sessions.size;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  todayViews.value = views.filter((view) =>
+    view.created_at?.startsWith(today)
+  ).length;
+
+  mobileViews.value = views.filter(
+    (view) => view.device_type === "Mobile"
+  ).length;
+};
+
 onMounted(() => {
   fetchDashboardContent();
 
@@ -91,6 +129,7 @@ onMounted(() => {
 
   fetchUnreadMessageCount();
   fetchAboutContentStatus();
+  fetchAnalyticsSummary();
 });
 </script>
 
@@ -237,12 +276,64 @@ onMounted(() => {
       </div>
     </div>
 
+    <div class="row g-4 mb-4">
+      <div class="col-md-3">
+        <NuxtLink to="/analytics" class="admin-card stat-card dashboard-stat-link analytics-card">
+          <div class="stat-icon">
+            <i class="bi bi-eye"></i>
+          </div>
+          <p class="stat-value">{{ recentPageViews }}</p>
+          <p class="stat-label">Recent Page Views</p>
+        </NuxtLink>
+      </div>
+
+      <div class="col-md-3">
+        <NuxtLink to="/analytics" class="admin-card stat-card dashboard-stat-link analytics-card">
+          <div class="stat-icon">
+            <i class="bi bi-calendar-day"></i>
+          </div>
+          <p class="stat-value">{{ todayViews }}</p>
+          <p class="stat-label">Today’s Views</p>
+        </NuxtLink>
+      </div>
+
+      <div class="col-md-3">
+        <NuxtLink to="/analytics" class="admin-card stat-card dashboard-stat-link analytics-card">
+          <div class="stat-icon">
+            <i class="bi bi-people"></i>
+          </div>
+          <p class="stat-value">{{ uniqueSessions }}</p>
+          <p class="stat-label">Unique Sessions</p>
+        </NuxtLink>
+      </div>
+
+      <div class="col-md-3">
+        <NuxtLink to="/analytics" class="admin-card stat-card dashboard-stat-link analytics-card">
+          <div class="stat-icon">
+            <i class="bi bi-phone"></i>
+          </div>
+          <p class="stat-value">{{ mobileViews }}</p>
+          <p class="stat-label">Mobile Views</p>
+        </NuxtLink>
+      </div>
+    </div>
+
     <div class="row g-4">
       <div class="col-lg-7">
         <div class="admin-card h-100">
           <h4 class="fw-bold mb-3">Quick Actions</h4>
 
           <div class="d-grid gap-3">
+            <NuxtLink to="/analytics" class="quick-action">
+              <div>
+                <h6 class="fw-bold mb-1">View site analytics</h6>
+                <p class="text-muted mb-0">
+                  Track visits, popular pages, devices, browsers, and recent activity.
+                </p>
+              </div>
+              <i class="bi bi-graph-up-arrow"></i>
+            </NuxtLink>
+
             <NuxtLink to="/content/homepage" class="quick-action">
               <div>
                 <h6 class="fw-bold mb-1">Edit homepage content</h6>
@@ -348,6 +439,7 @@ onMounted(() => {
           </p>
 
           <ul class="text-muted mb-0">
+            <li>Analytics Dashboard</li>
             <li>Homepage Content Manager</li>
             <li>About Content Manager</li>
             <li>Resume Manager</li>
@@ -374,5 +466,10 @@ onMounted(() => {
 
 .dashboard-stat-link:hover {
   transform: translateY(-4px);
+}
+
+.analytics-card .stat-icon {
+  background: rgba(235, 93, 58, 0.12);
+  color: #eb5d3a;
 }
 </style>
