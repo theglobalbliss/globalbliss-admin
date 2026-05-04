@@ -64,6 +64,26 @@ onMounted(async () => {
           Dashboard
         </NuxtLink>
 
+        <NuxtLink to="/analytics">
+          <i class="bi bi-graph-up-arrow"></i>
+          Analytics
+        </NuxtLink>
+
+        <NuxtLink to="/content/homepage">
+          <i class="bi bi-pencil-square"></i>
+          Homepage Content
+        </NuxtLink>
+
+        <NuxtLink to="/content/about">
+          <i class="bi bi-person-lines-fill"></i>
+          About Content
+        </NuxtLink>
+
+        <NuxtLink to="/resume">
+          <i class="bi bi-person-workspace"></i>
+          Resume
+        </NuxtLink>
+
         <NuxtLink to="/projects">
           <i class="bi bi-folder2-open"></i>
           Projects
@@ -107,11 +127,6 @@ onMounted(async () => {
         <NuxtLink to="/messages">
           <i class="bi bi-envelope"></i>
           Messages
-        </NuxtLink>
-
-        <NuxtLink to="/content/homepage">
-          <i class="bi bi-pencil-square"></i>
-          Homepage Content
         </NuxtLink>
 
         <a href="#" class="logout-link" @click.prevent="logout">

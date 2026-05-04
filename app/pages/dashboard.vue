@@ -16,8 +16,6 @@ const heroContent = ref({
   title: "Manage your portfolio with clarity, beauty, and bliss.",
   subtitle: "The GlobalBliss Brand",
   body: "Add new works, update project visuals, arrange your portfolio order, and keep your public website fresh from one simple dashboard.",
-  button_text: "Add New Project",
-  button_url: "/projects/add",
 });
 
 const projectCount = ref("0");
@@ -26,6 +24,8 @@ const testimonialCount = ref("0");
 const blogCount = ref("0");
 const messageCount = ref("0");
 const unreadMessageCount = ref("0");
+const resumeCount = ref("0");
+const aboutContentStatus = ref("Ready");
 
 const fetchDashboardContent = async () => {
   const { data, error } = await supabase
@@ -39,59 +39,17 @@ const fetchDashboardContent = async () => {
       title: data.title || heroContent.value.title,
       subtitle: data.subtitle || heroContent.value.subtitle,
       body: data.body || heroContent.value.body,
-      button_text: data.button_text || heroContent.value.button_text,
-      button_url: data.button_url || heroContent.value.button_url,
     };
   }
 };
 
-const fetchProjectCount = async () => {
+const fetchCount = async (tableName, targetRef) => {
   const { count, error } = await supabase
-    .from("projects")
+    .from(tableName)
     .select("*", { count: "exact", head: true });
 
   if (!error && count !== null) {
-    projectCount.value = count;
-  }
-};
-
-const fetchServiceCount = async () => {
-  const { count, error } = await supabase
-    .from("services")
-    .select("*", { count: "exact", head: true });
-
-  if (!error && count !== null) {
-    serviceCount.value = count;
-  }
-};
-
-const fetchTestimonialCount = async () => {
-  const { count, error } = await supabase
-    .from("testimonials")
-    .select("*", { count: "exact", head: true });
-
-  if (!error && count !== null) {
-    testimonialCount.value = count;
-  }
-};
-
-const fetchBlogCount = async () => {
-  const { count, error } = await supabase
-    .from("blog_posts")
-    .select("*", { count: "exact", head: true });
-
-  if (!error && count !== null) {
-    blogCount.value = count;
-  }
-};
-
-const fetchMessageCount = async () => {
-  const { count, error } = await supabase
-    .from("contact_messages")
-    .select("*", { count: "exact", head: true });
-
-  if (!error && count !== null) {
-    messageCount.value = count;
+    targetRef.value = count;
   }
 };
 
@@ -106,14 +64,33 @@ const fetchUnreadMessageCount = async () => {
   }
 };
 
+const fetchAboutContentStatus = async () => {
+  const { data, error } = await supabase
+    .from("about_content")
+    .select("id")
+    .eq("section_key", "main")
+    .single();
+
+  if (error || !data) {
+    aboutContentStatus.value = "Pending";
+    return;
+  }
+
+  aboutContentStatus.value = "Ready";
+};
+
 onMounted(() => {
   fetchDashboardContent();
-  fetchProjectCount();
-  fetchServiceCount();
-  fetchTestimonialCount();
-  fetchBlogCount();
-  fetchMessageCount();
+
+  fetchCount("projects", projectCount);
+  fetchCount("services", serviceCount);
+  fetchCount("testimonials", testimonialCount);
+  fetchCount("blog_posts", blogCount);
+  fetchCount("contact_messages", messageCount);
+  fetchCount("resume_items", resumeCount);
+
   fetchUnreadMessageCount();
+  fetchAboutContentStatus();
 });
 </script>
 
@@ -130,6 +107,7 @@ onMounted(() => {
       <a
         href="https://theglobalbliss.online"
         target="_blank"
+        rel="noopener noreferrer"
         class="btn btn-outline-dark"
       >
         <i class="bi bi-box-arrow-up-right me-2"></i>
@@ -157,19 +135,19 @@ onMounted(() => {
             Add New Project
           </NuxtLink>
 
-          <NuxtLink to="/blog/add" class="btn btn-light">
-            <i class="bi bi-pencil me-2"></i>
-            Add Blog Post
+          <NuxtLink to="/content/homepage" class="btn btn-light">
+            <i class="bi bi-pencil-square me-2"></i>
+            Edit Homepage
+          </NuxtLink>
+
+          <NuxtLink to="/content/about" class="btn btn-outline-light">
+            <i class="bi bi-person-lines-fill me-2"></i>
+            Edit About
           </NuxtLink>
 
           <NuxtLink to="/messages" class="btn btn-outline-light">
             <i class="bi bi-envelope me-2"></i>
             View Messages
-          </NuxtLink>
-
-          <NuxtLink to="/content/homepage" class="btn btn-outline-light">
-            <i class="bi bi-pencil-square me-2"></i>
-            Edit Homepage
           </NuxtLink>
         </div>
       </div>
@@ -177,85 +155,85 @@ onMounted(() => {
 
     <div class="row g-4 mb-4">
       <div class="col-md-3">
-        <div class="admin-card stat-card">
+        <NuxtLink to="/projects" class="admin-card stat-card dashboard-stat-link">
           <div class="stat-icon">
             <i class="bi bi-folder2-open"></i>
           </div>
           <p class="stat-value">{{ projectCount }}</p>
           <p class="stat-label">Portfolio Projects</p>
-        </div>
+        </NuxtLink>
       </div>
 
       <div class="col-md-3">
-        <div class="admin-card stat-card">
+        <NuxtLink to="/services" class="admin-card stat-card dashboard-stat-link">
           <div class="stat-icon">
             <i class="bi bi-briefcase"></i>
           </div>
           <p class="stat-value">{{ serviceCount }}</p>
           <p class="stat-label">Services</p>
-        </div>
+        </NuxtLink>
       </div>
 
       <div class="col-md-3">
-        <div class="admin-card stat-card">
+        <NuxtLink to="/blog" class="admin-card stat-card dashboard-stat-link">
           <div class="stat-icon">
             <i class="bi bi-journal-text"></i>
           </div>
           <p class="stat-value">{{ blogCount }}</p>
           <p class="stat-label">Blog Posts</p>
-        </div>
+        </NuxtLink>
       </div>
 
       <div class="col-md-3">
-        <div class="admin-card stat-card">
+        <NuxtLink to="/messages" class="admin-card stat-card dashboard-stat-link">
           <div class="stat-icon">
             <i class="bi bi-envelope"></i>
           </div>
           <p class="stat-value">{{ unreadMessageCount }}</p>
           <p class="stat-label">Unread Messages</p>
-        </div>
+        </NuxtLink>
       </div>
     </div>
 
     <div class="row g-4 mb-4">
       <div class="col-md-3">
-        <div class="admin-card stat-card">
+        <NuxtLink to="/testimonials" class="admin-card stat-card dashboard-stat-link">
           <div class="stat-icon">
             <i class="bi bi-chat-quote"></i>
           </div>
           <p class="stat-value">{{ testimonialCount }}</p>
           <p class="stat-label">Testimonials</p>
-        </div>
+        </NuxtLink>
       </div>
 
       <div class="col-md-3">
-        <div class="admin-card stat-card">
+        <NuxtLink to="/messages" class="admin-card stat-card dashboard-stat-link">
           <div class="stat-icon">
             <i class="bi bi-inbox"></i>
           </div>
           <p class="stat-value">{{ messageCount }}</p>
           <p class="stat-label">Total Messages</p>
-        </div>
+        </NuxtLink>
       </div>
 
       <div class="col-md-3">
-        <div class="admin-card stat-card">
+        <NuxtLink to="/resume" class="admin-card stat-card dashboard-stat-link">
           <div class="stat-icon">
-            <i class="bi bi-cloud-upload"></i>
+            <i class="bi bi-person-workspace"></i>
           </div>
-          <p class="stat-value">Live</p>
-          <p class="stat-label">Supabase Uploads</p>
-        </div>
+          <p class="stat-value">{{ resumeCount }}</p>
+          <p class="stat-label">Resume Items</p>
+        </NuxtLink>
       </div>
 
       <div class="col-md-3">
-        <div class="admin-card stat-card">
+        <NuxtLink to="/content/about" class="admin-card stat-card dashboard-stat-link">
           <div class="stat-icon">
-            <i class="bi bi-shield-lock"></i>
+            <i class="bi bi-person-lines-fill"></i>
           </div>
-          <p class="stat-value">Auth</p>
-          <p class="stat-label">Protected Admin</p>
-        </div>
+          <p class="stat-value">{{ aboutContentStatus }}</p>
+          <p class="stat-label">About Content</p>
+        </NuxtLink>
       </div>
     </div>
 
@@ -265,11 +243,41 @@ onMounted(() => {
           <h4 class="fw-bold mb-3">Quick Actions</h4>
 
           <div class="d-grid gap-3">
+            <NuxtLink to="/content/homepage" class="quick-action">
+              <div>
+                <h6 class="fw-bold mb-1">Edit homepage content</h6>
+                <p class="text-muted mb-0">
+                  Update hero, CTA, social handles, and key homepage sections.
+                </p>
+              </div>
+              <i class="bi bi-pencil-square"></i>
+            </NuxtLink>
+
+            <NuxtLink to="/content/about" class="quick-action">
+              <div>
+                <h6 class="fw-bold mb-1">Edit about page content</h6>
+                <p class="text-muted mb-0">
+                  Update your profile image, intro text, role, and availability statement.
+                </p>
+              </div>
+              <i class="bi bi-person-lines-fill"></i>
+            </NuxtLink>
+
+            <NuxtLink to="/resume" class="quick-action">
+              <div>
+                <h6 class="fw-bold mb-1">Manage resume section</h6>
+                <p class="text-muted mb-0">
+                  Add, edit, hide, delete, and arrange experience and education items.
+                </p>
+              </div>
+              <i class="bi bi-person-workspace"></i>
+            </NuxtLink>
+
             <NuxtLink to="/projects/add" class="quick-action">
               <div>
                 <h6 class="fw-bold mb-1">Add a new portfolio project</h6>
                 <p class="text-muted mb-0">
-                  Upload image, add project details, and publish instantly.
+                  Upload project image, gallery images, details, and publish instantly.
                 </p>
               </div>
               <i class="bi bi-arrow-right-circle"></i>
@@ -299,7 +307,7 @@ onMounted(() => {
               <div>
                 <h6 class="fw-bold mb-1">Manage services</h6>
                 <p class="text-muted mb-0">
-                  Add, edit, hide, delete, and arrange your homepage services.
+                  Add, edit, hide, delete, and arrange your services.
                 </p>
               </div>
               <i class="bi bi-briefcase"></i>
@@ -314,16 +322,6 @@ onMounted(() => {
               </div>
               <i class="bi bi-chat-quote"></i>
             </NuxtLink>
-
-            <NuxtLink to="/content/homepage" class="quick-action">
-              <div>
-                <h6 class="fw-bold mb-1">Edit homepage content</h6>
-                <p class="text-muted mb-0">
-                  Update hero, about, CTA, social handles, and hero image.
-                </p>
-              </div>
-              <i class="bi bi-pencil-square"></i>
-            </NuxtLink>
           </div>
         </div>
       </div>
@@ -337,9 +335,9 @@ onMounted(() => {
               Current setup
             </p>
             <p class="text-muted mb-0">
-              This dashboard updates your Supabase database. Your portfolio
-              will read from the same database, so changes can reflect without
-              touching the website code.
+              This dashboard updates your Supabase database. Your portfolio reads
+              from the same database, so changes can reflect without touching the
+              website code.
             </p>
           </div>
 
@@ -350,12 +348,14 @@ onMounted(() => {
           </p>
 
           <ul class="text-muted mb-0">
-            <li>Projects Manager</li>
+            <li>Homepage Content Manager</li>
+            <li>About Content Manager</li>
+            <li>Resume Manager</li>
+            <li>Projects Manager with gallery uploads</li>
             <li>Services Manager</li>
             <li>Testimonials Manager</li>
             <li>Blog Manager</li>
             <li>Contact Messages Manager</li>
-            <li>Homepage Content Manager</li>
             <li>Supabase Auth Protection</li>
           </ul>
         </div>
@@ -363,3 +363,16 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.dashboard-stat-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: 0.25s ease;
+}
+
+.dashboard-stat-link:hover {
+  transform: translateY(-4px);
+}
+</style>
